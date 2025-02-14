@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NanoEls emulator</title>
+  <style>
+    body {
+      font-family: Roboto, sans-serif;
+      margin: 0 auto;
+      max-width: 600px;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    input, textarea {
+      width: 100%;
+    }
+    .flexContainer {
+      display: flex;
+      flex-direction: column;
+    }
+    #log {
+      height: 300px;
+      overflow-y: scroll;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #fff;
+      margin-bottom: 20px;
+    }
+    #log p {
+      padding: 0;
+      margin: 0;
+    }
+    #command-container, #gcode-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #command {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    #send {
+      padding: 10px 20px;
+      border: none;
+      background-color: #007bff;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #send:hover {
+      background-color: #0056b3;
+    }
+    #gcode-list {
+      margin-top: 20px;
+      background-color: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #gcode-name, #gcode-content {
+      box-sizing: border-box;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    #gcode-content {
+      height: 300px;
+      resize: vertical;
+    }
+    #add-gcode, #remove-gcode {
+      padding: 10px 20px;
+      border: none;
+      background-color: #28a745;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #remove-gcode {
+      background-color: #dc3545;
+    }
+    #add-gcode:hover {
+      background-color: #218838;
+    }
+    #remove-gcode:hover {
+      background-color: #c82333;
+    }
+    .gcode-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+    }
+    .remove-icon {
+      cursor: pointer;
+      color: #dc3545;
+    }
+    .remove-icon:hover {
+      color: #c82333;
+    }
+  </style>
+</head>
+<body>
+  <h1>NanoEls emulator</h1>
+  <p>This emulator is helpful if you're developing NanoEls H5 Web UI but don't want to connect
+    to real hardware and instead prefer to test things locally on your PC beforehand.</p>
+  <div class="flexContainer">
+    <div class="flexChild">
+      <h2>WebSocket realtime communication</h2>
+      <div id="log"></div>
+      <div id="command-container">
+        <input type="text" id="command" placeholder="Enter command" value="?">
+        <button id="send">Send</button>
+      </div>
+    </div>
+    <div class="flexChild">
+      <h2>Stored GCode</h2>
+      <div id="gcode-list"></div>
+    </div>
+    <div class="flexChild">
+      <h2>Add or remove GCode</h2>
+      <input type="text" id="gcode-name" placeholder="GCode name">
+      <textarea id="gcode-content" placeholder="GCode content"></textarea>
+      <button id="add-gcode">Add G-code</button>
+    </div>
+  </div>
+
+  <script>
+    const log = document.getElementById('log');
+    const commandInput = document.getElementById('command');
+    const sendButton = document.getElementById('send');
+    const gcodeList = document.getElementById('gcode-list');
+    const gcodeNameInput = document.getElementById('gcode-name');
+    const gcodeContentInput = document.getElementById('gcode-content');
+    const addGcodeButton = document.getElementById('add-gcode');
+
+    const ws = new WebSocket('ws://localhost:81');
+
+    ws.onopen = () => {
+      logMessage('Connected to server');
+    };
+
+    ws.onmessage = (event) => {
+      logMessage('Received: ' + event.data);
+    };
+
+    ws.onclose = () => {
+      logMessage('Disconnected from server');
+    };
+
+    sendButton.addEventListener('click', () => {
+      const command = commandInput.value.trim();
+      if (command) {
+        logMessage('Sent: ' + command);
+        ws.send(command);
+        commandInput.value = '';
+      }
+    });
+
+    commandInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter') {
+        sendButton.click();
+      }
+    });
+
+    addGcodeButton.addEventListener('click', () => {
+      const name = gcodeNameInput.value.trim();
+      const content = gcodeContentInput.value.trim();
+      if (name && content) {
+        fetch('/gcode/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ name, gcode: content })
+        })
+        .then(response => response.text())
+        .then(data => {
+          logMessage(data);
+          listGcodes();
+        });
+      }
+    });
+
+    function listGcodes() {
+      fetch('/gcode/list')
+        .then(response => response.text())
+        .then(data => {
+          gcodeList.innerHTML = '';
+          if (data) {
+            data.split('\n').forEach(gcode => {
+              const row = document.createElement('div');
+              row.className = 'gcode-row';
+              row.innerHTML = `
+                <span>${gcode}</span>
+                <span class="remove-icon" data-name="${gcode}">&times;</span>
+              `;
+              gcodeList.appendChild(row);
+            });
+            document.querySelectorAll('.remove-icon').forEach(icon => {
+              icon.addEventListener('click', (event) => {
+                const name = event.target.getAttribute('data-name');
+                removeGcode(name);
+              });
+            });
+          } else {
+            gcodeList.innerHTML = 'No G-code stored';
+          }
+        });
+    }
+
+    function removeGcode(name) {
+      fetch('/gcode/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ name })
+      })
+      .then(response => response.text())
+      .then(data => {
+        logMessage(data);
+        listGcodes();
+      });
+    }
+
+    function logMessage(message) {
+      const p = document.createElement('p');
+      p.textContent = message;
+      log.appendChild(p);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    listGcodes();
+  </script>
+</body>
+</html>
