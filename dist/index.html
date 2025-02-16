@@ -117,10 +117,14 @@
 <body>
   <h1>NanoEls H5</h1>
   <p>This Web UI is served from your NanoEls controller memory. It doesn't need Internet connection. Anyone on your local network has access to it.</p>
-  <p>It communicates with NanoEls in 2 ways. For saving, loading and removing stored GCode files it uses HTTP calls that can succeed or fail individually and it doesn't
-    affect the realtime communication with the NanoEls controller. For realtime communication it uses WebSocket that is always open and can be used to send commands to the controller and receive responses from it.
+  <p>
+    It communicates with NanoEls in 2 ways. For saving, loading and removing stored GCode files it uses HTTP calls that can succeed or fail
+    individually and it doesn't affect the realtime communication with the NanoEls controller.
   </p>
-  <p>Realtime log can also be used for debugging since serial communication with NanoEls can be problematic as that channel is used by the screen.</p>
+  <p>
+    For realtime communication it uses WebSocket that is always open and can be used to send commands to the controller and receive responses from it.
+    Realtime log can also be used for debugging since serial communication with NanoEls can be problematic as that channel is used by the screen.
+  </p>
   <h2>Stored GCode</h2>
   <div id="gcode-list"></div>
   <p id="free-space"></p>
