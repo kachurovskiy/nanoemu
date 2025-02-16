@@ -181,6 +181,14 @@ class Controller {
     }
     return false;
   }
+
+  getFreeSpace(): number {
+    let space = 0;
+    for (let key in this.programs) {
+      space += this.programs[key].length;
+    }
+    return 1024 * 1024 - space;
+  }
 }
 
 export default Controller;

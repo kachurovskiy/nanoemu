@@ -29,6 +29,11 @@ wss.on('connection', (ws: WebSocket) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get('/status', (req: Request, res: Response) => {
+  const freeSpace = controller.getFreeSpace();
+  res.status(200).send(`LittleFS.freeSpace=${freeSpace}`);
+});
+
 app.post('/gcode/add', (req: Request, res: Response) => {
   const { name, gcode } = req.body;
   if (controller.saveGcode(name, gcode)) {
